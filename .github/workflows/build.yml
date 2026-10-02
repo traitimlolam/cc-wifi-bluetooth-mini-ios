@@ -39,13 +39,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: v1.0.1
-          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.1 (iPhone 13 mini - iOS 15.6.1 RootHide)
+          tag_name: v1.0.2
+          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.2 (iPhone 13 mini - iOS 15.6.1 RootHide)
           body: |
             ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập cho Control Center (iPhone 13 mini iOS 15.6.1 RootHide)
             - **Tính năng:** Đưa 2 nút Wi-Fi và Bluetooth ra ngoài lưới Control Center thành 2 ô 1x1 độc lập.
             - **Bật / Tắt 1 chạm:** Chạm là ngắt/bật dứt khoát không cần mở Cài đặt.
-            - **Khóa phần cứng 2 tầng:**
-              1. Chặn ngay khi cài đặt (preinst) nếu mã máy khác `iPhone14,4`.
-              2. Khóa ngầm trong nhân nhị phân Mach-O (tự ngắt nếu không phải iPhone 13 mini).
+            - **Cài đặt độc lập:** Đã gỡ bỏ hoàn toàn phụ thuộc CCSupport, cài đặt thẳng trên Sileo không bị lỗi thiếu phụ thuộc.
           files: output/*.deb
