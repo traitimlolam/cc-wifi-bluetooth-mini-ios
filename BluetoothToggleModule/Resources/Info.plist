@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>BluetoothToggleModule</string>
+	<string>Bluetooth</string>
+	<key>CFBundleDisplayName</key>
+	<string>Bluetooth</string>
 	<key>CFBundleExecutable</key>
 	<string>BluetoothToggleModule</string>
 	<key>CFBundleIdentifier</key>
@@ -20,6 +22,14 @@
 	<string>1.0</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>CFBundleIconFile</key>
+	<string>icon</string>
+	<key>CFBundleIconFiles</key>
+	<array>
+		<string>icon</string>
+		<string>SettingsIcon</string>
+		<string>ModuleIcon</string>
+	</array>
 	<key>MinimumOSVersion</key>
 	<string>14.0</string>
 	<key>UIDeviceFamily</key>
