@@ -29,7 +29,7 @@ jobs:
           chmod -R 755 layout/DEBIAN/
           make clean package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
           mkdir -p output
-          cp packages/*.deb output/CCWiFiAndBT_iPhone13mini_roothide.deb
+          cp packages/*.deb output/CCWiFiAndBT_v1.0.3_iPhone13mini_roothide.deb
 
       - name: List Output Files
         run: |
@@ -39,11 +39,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: v1.0.2
-          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.2 (iPhone 13 mini - iOS 15.6.1 RootHide)
+          tag_name: v1.0.3
+          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.3 (Icon Gốc Nhỏ Gọn Chuẩn Tỉ Lệ Cho iPhone 13 mini)
           body: |
-            ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập cho Control Center (iPhone 13 mini iOS 15.6.1 RootHide)
-            - **Tính năng:** Đưa 2 nút Wi-Fi và Bluetooth ra ngoài lưới Control Center thành 2 ô 1x1 độc lập.
-            - **Bật / Tắt 1 chạm:** Chạm là ngắt/bật dứt khoát không cần mở Cài đặt.
-            - **Cài đặt độc lập:** Đã gỡ bỏ hoàn toàn phụ thuộc CCSupport, cài đặt thẳng trên Sileo không bị lỗi thiếu phụ thuộc.
+            ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập v1.0.3 (iPhone 13 mini)
+            - **Icon gốc chuẩn hệ thống:** Sử dụng trực tiếp biểu tượng gốc của hệ thống máy đời này (`wifi` và `bluetooth`), không dùng icon thô.
+            - **Tỉ lệ thanh mảnh, đồng bộ:** Kích thước icon nhỏ gọn vừa vặn đúng tỉ lệ như các nút xung quanh (Khóa xoay, Chuông im lặng, Đèn pin, Hẹn giờ).
+            - **Khóa model:** Dành riêng duy nhất cho iPhone 13 mini (`iPhone14,4`).
           files: output/*.deb
