@@ -4,9 +4,27 @@
 #import <dlfcn.h>
 
 typedef struct __WiFiManagerClient *WiFiManagerClientRef;
+typedef struct __WiFiDeviceClient *WiFiDeviceClientRef;
+typedef struct __WiFiNetwork *WiFiNetworkRef;
+
 extern WiFiManagerClientRef WiFiManagerClientCreate(CFAllocatorRef allocator, int flags);
+extern CFArrayRef WiFiManagerClientCopyDevices(WiFiManagerClientRef client);
+extern void WiFiDeviceClientDisassociate(WiFiDeviceClientRef device);
 extern Boolean WiFiManagerClientGetPower(WiFiManagerClientRef client);
 extern void WiFiManagerClientSetPower(WiFiManagerClientRef client, Boolean power);
+
+@interface SBWiFiManager : NSObject
++ (instancetype)sharedInstance;
+- (BOOL)isAssociated;
+- (BOOL)isPowered;
+- (BOOL)wiFiEnabled;
+- (void)setPowered:(BOOL)powered;
+- (void)setWiFiEnabled:(BOOL)enabled;
+@end
+
+@interface WFControlCenterStateMonitor : NSObject
+- (void)performAction;
+@end
 
 @interface UIImage (PrivateSF)
 + (UIImage *)_systemImageNamed:(NSString *)name;
@@ -48,16 +66,15 @@ static BOOL isAuthorizedDevice(void) {
     return [UIColor colorWithRed:0.0 green:0.478 blue:1.0 alpha:1.0];
 }
 
+// Chế độ gốc của Apple: Nút sáng Xanh khi đang KẾT NỐI (associated) vào mạng Wi-Fi
 - (BOOL)isSelected {
     if (!isAuthorizedDevice()) return NO;
 
     Class sbWifiClass = NSClassFromString(@"SBWiFiManager");
     if (sbWifiClass) {
         id wifiMgr = [sbWifiClass performSelector:@selector(sharedInstance)];
-        if ([wifiMgr respondsToSelector:@selector(isPowered)]) {
-            return (BOOL)((intptr_t)[wifiMgr performSelector:@selector(isPowered)]);
-        } else if ([wifiMgr respondsToSelector:@selector(wiFiEnabled)]) {
-            return (BOOL)((intptr_t)[wifiMgr performSelector:@selector(wiFiEnabled)]);
+        if (wifiMgr && [wifiMgr respondsToSelector:@selector(isAssociated)]) {
+            return (BOOL)((intptr_t)[wifiMgr performSelector:@selector(isAssociated)]);
         }
     }
 
@@ -77,39 +94,40 @@ static BOOL isAuthorizedDevice(void) {
     return NO;
 }
 
+// Chế độ gốc của Apple: Bấm vào thì NGẮT KẾT NỐI (disconnect/disassociate) chứ KHÔNG tắt hẳn chip Wi-Fi
 - (void)setSelected:(BOOL)selected {
     if (!isAuthorizedDevice()) return;
 
-    Class sbWifiClass = NSClassFromString(@"SBWiFiManager");
-    if (sbWifiClass) {
-        id wifiMgr = [sbWifiClass performSelector:@selector(sharedInstance)];
-        if ([wifiMgr respondsToSelector:@selector(setPowered:)]) {
-            NSMethodSignature *sig = [wifiMgr methodSignatureForSelector:@selector(setPowered:)];
-            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-            [inv setTarget:wifiMgr];
-            [inv setSelector:@selector(setPowered:)];
-            BOOL val = selected;
-            [inv setArgument:&val atIndex:2];
-            [inv invoke];
-        } else if ([wifiMgr respondsToSelector:@selector(setWiFiEnabled:)]) {
-            NSMethodSignature *sig = [wifiMgr methodSignatureForSelector:@selector(setWiFiEnabled:)];
-            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-            [inv setTarget:wifiMgr];
-            [inv setSelector:@selector(setWiFiEnabled:)];
-            BOOL val = selected;
-            [inv setArgument:&val atIndex:2];
-            [inv invoke];
+    // 1. Dùng trực tiếp WFControlCenterStateMonitor chuẩn gốc của Control Center
+    dlopen("/System/Library/PrivateFrameworks/WiFiKit.framework/WiFiKit", RTLD_NOW);
+    Class monitorClass = NSClassFromString(@"WFControlCenterStateMonitor");
+    if (monitorClass) {
+        id monitor = [[monitorClass alloc] init];
+        if (monitor && [monitor respondsToSelector:@selector(performAction)]) {
+            [monitor performAction];
+            [super refreshState];
+            return;
         }
     }
 
+    // 2. Dự phòng qua MobileWiFi: Ngắt kết nối mạng hiện tại (Disassociate)
     void *h = dlopen("/System/Library/PrivateFrameworks/MobileWiFi.framework/MobileWiFi", RTLD_NOW);
     if (h) {
         WiFiManagerClientRef (*pCreate)(CFAllocatorRef, int) = dlsym(h, "WiFiManagerClientCreate");
-        void (*pSetPower)(WiFiManagerClientRef, Boolean) = dlsym(h, "WiFiManagerClientSetPower");
-        if (pCreate && pSetPower) {
+        CFArrayRef (*pCopyDevices)(WiFiManagerClientRef) = dlsym(h, "WiFiManagerClientCopyDevices");
+        void (*pDisassociate)(WiFiDeviceClientRef) = dlsym(h, "WiFiDeviceClientDisassociate");
+        if (pCreate && pCopyDevices && pDisassociate) {
             WiFiManagerClientRef client = pCreate(kCFAllocatorDefault, 0);
             if (client) {
-                pSetPower(client, (Boolean)selected);
+                CFArrayRef devices = pCopyDevices(client);
+                if (devices && CFArrayGetCount(devices) > 0) {
+                    WiFiDeviceClientRef dev = (WiFiDeviceClientRef)CFArrayGetValueAtIndex(devices, 0);
+                    if (!selected) {
+                        // Bấm tắt: ngắt kết nối mạng hiện tại (chip Wi-Fi vẫn bật trong Settings)
+                        pDisassociate(dev);
+                    }
+                }
+                if (devices) CFRelease(devices);
                 CFRelease(client);
             }
         }
