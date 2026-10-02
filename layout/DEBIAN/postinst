@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "Đã kích hoạt 2 nút Wi-Fi & Bluetooth độc lập cho iPhone 13 mini."
+exit 0
