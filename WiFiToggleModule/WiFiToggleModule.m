@@ -8,6 +8,11 @@ extern WiFiManagerClientRef WiFiManagerClientCreate(CFAllocatorRef allocator, in
 extern Boolean WiFiManagerClientGetPower(WiFiManagerClientRef client);
 extern void WiFiManagerClientSetPower(WiFiManagerClientRef client, Boolean power);
 
+@interface UIImage (PrivateSF)
++ (UIImage *)_systemImageNamed:(NSString *)name;
++ (UIImage *)_systemImageNamed:(NSString *)name withConfiguration:(UIImageConfiguration *)configuration;
+@end
+
 @interface WiFiToggleModule : CCUIToggleModule
 @end
 
@@ -20,15 +25,23 @@ static BOOL isAuthorizedDevice(void) {
 }
 
 - (UIImage *)iconGlyph {
-    UIImage *img = [UIImage imageNamed:@"ModuleIcon" inBundle:[NSBundle bundleForClass:[self class]] compatibleWithTraitCollection:nil];
+    UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:19.0 weight:UIImageSymbolWeightRegular];
+    UIImage *img = [UIImage systemImageNamed:@"wifi" withConfiguration:config];
     if (!img) {
         img = [UIImage systemImageNamed:@"wifi"];
+    }
+    if (!img) {
+        img = [UIImage imageNamed:@"ModuleIcon" inBundle:[NSBundle bundleForClass:[self class]] compatibleWithTraitCollection:nil];
     }
     return img;
 }
 
 - (UIImage *)selectedIconGlyph {
     return [self iconGlyph];
+}
+
+- (double)glyphScale {
+    return 0.65;
 }
 
 - (UIColor *)selectedColor {
