@@ -3,6 +3,11 @@
 #import <sys/utsname.h>
 #import <dlfcn.h>
 
+@interface UIImage (PrivateSF)
++ (UIImage *)_systemImageNamed:(NSString *)name;
++ (UIImage *)_systemImageNamed:(NSString *)name withConfiguration:(UIImageConfiguration *)configuration;
+@end
+
 @interface BluetoothToggleModule : CCUIToggleModule
 @end
 
@@ -15,15 +20,32 @@ static BOOL isAuthorizedDevice(void) {
 }
 
 - (UIImage *)iconGlyph {
-    UIImage *img = [UIImage imageNamed:@"ModuleIcon" inBundle:[NSBundle bundleForClass:[self class]] compatibleWithTraitCollection:nil];
+    UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:19.0 weight:UIImageSymbolWeightRegular];
+    UIImage *img = nil;
+    if ([UIImage respondsToSelector:@selector(_systemImageNamed:withConfiguration:)]) {
+        img = [UIImage _systemImageNamed:@"bluetooth" withConfiguration:config];
+    }
+    if (!img) {
+        img = [UIImage systemImageNamed:@"bluetooth" withConfiguration:config];
+    }
+    if (!img && [UIImage respondsToSelector:@selector(_systemImageNamed:)]) {
+        img = [UIImage _systemImageNamed:@"bluetooth"];
+    }
     if (!img) {
         img = [UIImage systemImageNamed:@"bluetooth"];
+    }
+    if (!img) {
+        img = [UIImage imageNamed:@"ModuleIcon" inBundle:[NSBundle bundleForClass:[self class]] compatibleWithTraitCollection:nil];
     }
     return img;
 }
 
 - (UIImage *)selectedIconGlyph {
     return [self iconGlyph];
+}
+
+- (double)glyphScale {
+    return 0.65;
 }
 
 - (UIColor *)selectedColor {
