@@ -29,7 +29,7 @@ jobs:
           chmod -R 755 layout/DEBIAN/
           make clean package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
           mkdir -p output
-          cp packages/*.deb output/CCWiFiAndBT_v1.0.3_iPhone13mini_roothide.deb
+          cp packages/*.deb output/CCWiFiAndBT_v1.0.4_iPhone13mini_roothide.deb
 
       - name: List Output Files
         run: |
@@ -39,11 +39,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: v1.0.3
-          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.3 (Icon Gốc Nhỏ Gọn Chuẩn Tỉ Lệ Cho iPhone 13 mini)
+          tag_name: v1.0.4
+          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.4 (Full Native Icons Cho iPhone 13 mini)
           body: |
-            ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập v1.0.3 (iPhone 13 mini)
-            - **Icon gốc chuẩn hệ thống:** Sử dụng trực tiếp biểu tượng gốc của hệ thống máy đời này (`wifi` và `bluetooth`), không dùng icon thô.
-            - **Tỉ lệ thanh mảnh, đồng bộ:** Kích thước icon nhỏ gọn vừa vặn đúng tỉ lệ như các nút xung quanh (Khóa xoay, Chuông im lặng, Đèn pin, Hẹn giờ).
-            - **Khóa model:** Dành riêng duy nhất cho iPhone 13 mini (`iPhone14,4`).
+            ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập v1.0.4 (iPhone 13 mini)
+            - **Icon Cài đặt chuẩn Squircle:** Hiển thị icon vuông bo góc nền xanh Apple với biểu tượng trắng ở giữa (hết lỗi lưới placeholder).
+            - **Tên hiển thị chuẩn:** Đổi tên hiển thị từ WiFiToggleModule -> "Wi-Fi", BluetoothToggleModule -> "Bluetooth".
+            - **Icon Control Center thanh mảnh:** Tỉ lệ compact 0.65 nhỏ gọn đồng bộ với toàn bộ các nút xung quanh.
           files: output/*.deb
