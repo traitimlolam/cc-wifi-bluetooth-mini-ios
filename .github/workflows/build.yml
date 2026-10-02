@@ -1,0 +1,49 @@
+name: Build CCWiFiAndBT DEB
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Tweak (.deb)
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Theos (RootHide)
+        uses: waruhachi/theos-action@v2.4.10
+        with:
+          theos-src: 'roothide/theos'
+          theos-branch: 'master'
+          sdks-src: 'theos/sdks'
+          sdks-branch: 'master'
+
+      - name: Build RootHide DEB
+        run: |
+          chmod +x preinst
+          make clean package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
+          mkdir -p output
+          cp packages/*.deb output/CCWiFiAndBT_iPhone13mini_roothide.deb
+
+      - name: List Output Files
+        run: |
+          ls -la output/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
+        with:
+          tag_name: v1.0.0
+          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.0 (iPhone 13 mini - iOS 15.6.1 RootHide)
+          body: |
+            ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập cho Control Center (iPhone 13 mini iOS 15.6.1 RootHide)
+            - **Tính năng:** Đưa 2 nút Wi-Fi và Bluetooth ra ngoài lưới Control Center thành 2 ô 1x1 độc lập.
+            - **Bật / Tắt 1 chạm:** Chạm là ngắt/bật dứt khoát không cần mở Cài đặt.
+            - **Khóa phần cứng:** Chỉ hoạt động trên dòng iPhone 13 mini (iPhone14,4), máy khác cài sẽ báo lỗi và bị từ chối.
+          files: output/*.deb
