@@ -8,7 +8,10 @@ extern WiFiManagerClientRef WiFiManagerClientCreate(CFAllocatorRef allocator, in
 extern Boolean WiFiManagerClientGetPower(WiFiManagerClientRef client);
 extern void WiFiManagerClientSetPower(WiFiManagerClientRef client, Boolean power);
 
-@interface WiFiToggleModule : CCUIToggleModule
+@interface WiFiToggleModule : CCUIToggleModule {
+    BOOL _isTransitioning;
+    BOOL _targetState;
+}
 @end
 
 @implementation WiFiToggleModule
@@ -17,6 +20,14 @@ static BOOL isAuthorizedDevice(void) {
     struct utsname systemInfo;
     uname(&systemInfo);
     return (strcmp(systemInfo.machine, "iPhone14,4") == 0);
+}
+
+- (instancetype)init {
+    if ((self = [super init])) {
+        _isTransitioning = NO;
+        _targetState = NO;
+    }
+    return self;
 }
 
 // Icon Wi-Fi tỉ lệ chuẩn 1.0 (28pt) sắc nét vừa vặn hoàn hảo
@@ -44,9 +55,13 @@ static BOOL isAuthorizedDevice(void) {
     return [UIColor colorWithRed:0.0 green:0.478 blue:1.0 alpha:1.0];
 }
 
-// Kiểm tra trạng thái bật/tắt nguồn Wi-Fi siêu tốc (0.1ms)
+// Kiểm tra trạng thái bật/tắt nguồn Wi-Fi siêu tốc
 - (BOOL)isSelected {
     if (!isAuthorizedDevice()) return NO;
+
+    if (_isTransitioning) {
+        return _targetState;
+    }
 
     // 1. Kiểm tra qua SBWiFiManager (SpringBoard native)
     Class sb = NSClassFromString(@"SBWiFiManager");
@@ -75,9 +90,12 @@ static BOOL isAuthorizedDevice(void) {
     return NO;
 }
 
-// Bật / Tắt Wi-Fi dứt khoát 1 chạm (0.1ms, siêu mượt, không đơ, không động chạm nút thật)
+// Bật / Tắt Wi-Fi dứt khoát 1 chạm (Có trạng thái chuyển tiếp mượt mà, không giật lag)
 - (void)setSelected:(BOOL)selected {
     if (!isAuthorizedDevice()) return;
+
+    _isTransitioning = YES;
+    _targetState = selected;
 
     // 1. Điều khiển qua SBWiFiManager (SpringBoard native)
     Class sb = NSClassFromString(@"SBWiFiManager");
@@ -120,7 +138,8 @@ static BOOL isAuthorizedDevice(void) {
     }
 
     [super refreshState];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.20 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.40 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        self->_isTransitioning = NO;
         [self refreshState];
     });
 }
