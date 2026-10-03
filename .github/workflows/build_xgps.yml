@@ -1,0 +1,49 @@
+name: Build XGPS Licenses
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'xgps/**'
+
+jobs:
+  build:
+    name: Build 6 XGPS License Dylibs
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Tools
+        run: |
+          brew install ldid || true
+
+      - name: Compile 6 Universal Dylibs
+        run: |
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          mkdir -p build_output
+          
+          build_variant() {
+            DAYS=$1
+            KEYCHAIN=$2
+            NAME=$3
+            echo "==> Compiling $NAME (TRIAL_DAYS=$DAYS, USE_KEYCHAIN=$KEYCHAIN)"
+            xcrun -sdk iphoneos clang -dynamiclib -arch arm64 -arch arm64e               -isysroot $SDK -miphoneos-version-min=14.0               -fobjc-arc -framework UIKit -framework Security -framework Foundation               -DTRIAL_DAYS=$DAYS -DUSE_KEYCHAIN=$KEYCHAIN               xgps/XGPSLicense.m -o build_output/$NAME.dylib
+            ldid -S build_output/$NAME.dylib || codesign -s - build_output/$NAME.dylib
+          }
+
+          build_variant 30 0 XGPSLicense_1M_Soft
+          build_variant 90 0 XGPSLicense_3M_Soft
+          build_variant 180 0 XGPSLicense_6M_Soft
+          build_variant 30 1 XGPSLicense_1M_Hard
+          build_variant 90 1 XGPSLicense_3M_Hard
+          build_variant 180 1 XGPSLicense_6M_Hard
+
+          ls -lh build_output/
+
+      - name: Create Release with Dylibs
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: xgps-licenses-v1
+          name: XGPS License Universal Dylibs (arm64 & arm64e)
+          files: build_output/*.dylib
