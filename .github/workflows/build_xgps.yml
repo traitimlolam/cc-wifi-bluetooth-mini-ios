@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   build:
-    name: Build 6 XGPS License Dylibs
+    name: Build XGPS License Dylibs
     runs-on: macos-14
     steps:
       - name: Checkout Code
@@ -18,31 +18,27 @@ jobs:
         run: |
           brew install ldid || true
 
-      - name: Compile 6 Universal Dylibs
+      - name: Compile Universal Dylibs
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           mkdir -p build_output
           
-          build_variant() {
-            DAYS=$1
+          build_variant_sec() {
+            SECS=$1
             KEYCHAIN=$2
             NAME=$3
-            echo "==> Compiling $NAME (TRIAL_DAYS=$DAYS, USE_KEYCHAIN=$KEYCHAIN)"
-            xcrun -sdk iphoneos clang -dynamiclib -arch arm64 -arch arm64e               -isysroot $SDK -miphoneos-version-min=14.0               -fobjc-arc -framework UIKit -framework Security -framework Foundation               -DTRIAL_DAYS=$DAYS -DUSE_KEYCHAIN=$KEYCHAIN               xgps/XGPSLicense.m -o build_output/$NAME.dylib
+            echo "==> Compiling $NAME (TRIAL_SECONDS=$SECS, USE_KEYCHAIN=$KEYCHAIN)"
+            xcrun -sdk iphoneos clang -dynamiclib -arch arm64 -arch arm64e               -isysroot $SDK -miphoneos-version-min=14.0               -fobjc-arc -framework UIKit -framework Security -framework Foundation               -DTRIAL_SECONDS=$SECS -DUSE_KEYCHAIN=$KEYCHAIN               xgps/XGPSLicense.m -o build_output/$NAME.dylib
             ldid -S build_output/$NAME.dylib || codesign -s - build_output/$NAME.dylib
           }
 
-          build_variant 30 0 XGPSLicense_1M_Soft
-          build_variant 90 0 XGPSLicense_3M_Soft
-          build_variant 180 0 XGPSLicense_6M_Soft
-          build_variant 30 1 XGPSLicense_1M_Hard
-          build_variant 90 1 XGPSLicense_3M_Hard
-          build_variant 180 1 XGPSLicense_6M_Hard
+          # 6 tiếng = 21600 giây
+          build_variant_sec 21600.0 0 XGPSLicense_6H_Soft
 
           ls -lh build_output/
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: xgps-dylibs
+          name: xgps-6h-dylib
           path: build_output/*.dylib
