@@ -8,6 +8,11 @@ static BOOL isAuthorizedDevice(void) {
     return (strcmp(systemInfo.machine, "iPhone14,4") == 0);
 }
 
+@interface WFControlCenterStateMonitor : NSObject
+- (void)performAction;
+- (long long)state;
+@end
+
 @interface CCUIConnectivityWifiViewController : UIViewController
 - (void)buttonTapped:(id)sender;
 - (void)_toggleState;
