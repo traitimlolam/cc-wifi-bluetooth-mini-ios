@@ -29,7 +29,7 @@ jobs:
           chmod -R 755 layout/DEBIAN/
           make clean package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
           mkdir -p output
-          cp packages/*.deb output/CCWiFiAndBT_v1.0.6_iPhone13mini_roothide.deb
+          cp packages/*.deb output/CCWiFiAndBT_v1.0.7_iPhone13mini_roothide.deb
 
       - name: List Output Files
         run: |
@@ -39,10 +39,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: v1.0.6
-          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.6 (iPhone 13 mini - iOS 15.6.1 RootHide)
+          tag_name: v1.0.7
+          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.7 (iPhone 13 mini - iOS 15.6.1 RootHide)
           body: |
             ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập cho Control Center (iPhone 13 mini iOS 15.6.1 RootHide)
-            - **Icon Wi-Fi:** Phóng to gấp đôi (38pt, scale 1.25) rõ nét chuẩn đẹp.
-            - **Chuẩn gốc Apple:** Bấm ngắt/kết nối đồng bộ 100% với cụm kết nối gốc và hệ điều hành.
+            - **Icon Wi-Fi:** Tỉ lệ scale 1.0 chuẩn cân đối.
+            - **Chuẩn gốc Apple:** Bấm ngắt kết nối (giữ chip Wi-Fi bật trong Cài đặt), bấm lại kết nối ngay.
           files: output/*.deb
