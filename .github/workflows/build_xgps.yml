@@ -2,9 +2,9 @@ name: Build XGPS Licenses
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'xgps/**'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -41,9 +41,8 @@ jobs:
 
           ls -lh build_output/
 
-      - name: Create Release with Dylibs
-        uses: softprops/action-gh-release@v2
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: xgps-licenses-v1
-          name: XGPS License Universal Dylibs (arm64 & arm64e)
-          files: build_output/*.dylib
+          name: xgps-dylibs
+          path: build_output/*.dylib
