@@ -29,7 +29,7 @@ jobs:
           chmod -R 755 layout/DEBIAN/
           make clean package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
           mkdir -p output
-          cp packages/*.deb output/CCWiFiAndBT_v1.0.5_iPhone13mini_roothide.deb
+          cp packages/*.deb output/CCWiFiAndBT_v1.0.6_iPhone13mini_roothide.deb
 
       - name: List Output Files
         run: |
@@ -39,12 +39,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: v1.0.5
-          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.5 (Chế Độ Ngắt Kết Nối Chuẩn Gốc Cho iPhone 13 mini)
+          tag_name: v1.0.6
+          name: CC Wi-Fi & Bluetooth Độc Lập v1.0.6 (iPhone 13 mini - iOS 15.6.1 RootHide)
           body: |
-            ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập v1.0.5 (iPhone 13 mini)
-            - **Chế độ ngắt kết nối chuẩn gốc (Native Disconnect):** Khi bấm vào nút Wi-Fi, máy sẽ ngắt kết nối với mạng Wi-Fi hiện tại (chuyển sang màu kính mờ) chứ KHÔNG tắt hẳn chip Wi-Fi trong Cài đặt.
-            - **Icon Cài đặt chuẩn Squircle:** Không bị lỗi lưới placeholder.
-            - **Icon Control Center thanh mảnh:** Tỉ lệ compact 0.65 nhỏ gọn đồng bộ với các nút xung quanh.
-            - **Khóa model:** Duy nhất cho iPhone 13 mini (`iPhone14,4`).
+            ### 🎛️ 2 Nút Wi-Fi & Bluetooth Độc Lập cho Control Center (iPhone 13 mini iOS 15.6.1 RootHide)
+            - **Icon Wi-Fi:** Phóng to gấp đôi (38pt, scale 1.25) rõ nét chuẩn đẹp.
+            - **Chuẩn gốc Apple:** Bấm ngắt/kết nối đồng bộ 100% với cụm kết nối gốc và hệ điều hành.
           files: output/*.deb
