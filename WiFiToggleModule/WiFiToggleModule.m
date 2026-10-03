@@ -3,6 +3,9 @@
 #import <sys/utsname.h>
 #import <dlfcn.h>
 
+typedef void (*NativeWiFiButtonTapFunc)(void);
+typedef BOOL (*NativeWiFiIsSelectedFunc)(void);
+
 @interface WiFiToggleModule : CCUIToggleModule
 @end
 
@@ -25,7 +28,7 @@ static BOOL isAuthorizedDevice(void) {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
-// Icon Wi-Fi glyphScale đặt về 1.0 theo đúng chỉ định của Sếp
+// Icon Wi-Fi tỉ lệ glyphScale = 1.0 chuẩn đẹp theo đúng chỉ định của Sếp
 - (UIImage *)iconGlyph {
     UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:28.0 weight:UIImageSymbolWeightRegular];
     UIImage *img = [UIImage systemImageNamed:@"wifi" withConfiguration:config];
@@ -43,26 +46,20 @@ static BOOL isAuthorizedDevice(void) {
 }
 
 - (double)glyphScale {
-    return 1.0; // Đặt về 1.0 theo đúng yêu cầu
+    return 1.0; // Đúng chuẩn 1.0 theo yêu cầu
 }
 
 - (UIColor *)selectedColor {
     return [UIColor colorWithRed:0.0 green:0.478 blue:1.0 alpha:1.0];
 }
 
-// Trạng thái: Sáng XANH khi đang kết nối Wi-Fi (isPowered == YES && userAutoJoinState == YES)
+// Trạng thái đồng bộ 100% với nút Wi-Fi thật của Control Center
 - (BOOL)isSelected {
     if (!isAuthorizedDevice()) return NO;
 
-    dlopen("/System/Library/PrivateFrameworks/WiFiKit.framework/WiFiKit", RTLD_NOW);
-    Class clientClass = NSClassFromString(@"WFClient");
-    if (clientClass) {
-        id client = [clientClass performSelector:@selector(sharedInstance)];
-        if (client) {
-            BOOL isPowered = [client respondsToSelector:@selector(isPowered)] ? (BOOL)((intptr_t)[client performSelector:@selector(isPowered)]) : YES;
-            BOOL autoJoin = [client respondsToSelector:@selector(userAutoJoinState)] ? (BOOL)((intptr_t)[client performSelector:@selector(userAutoJoinState)]) : YES;
-            return isPowered && autoJoin;
-        }
+    NativeWiFiIsSelectedFunc pIsSel = (NativeWiFiIsSelectedFunc)dlsym(RTLD_DEFAULT, "NativeWiFiIsSelected");
+    if (pIsSel) {
+        return pIsSel();
     }
 
     Class sbWifiClass = NSClassFromString(@"SBWiFiManager");
@@ -75,82 +72,20 @@ static BOOL isAuthorizedDevice(void) {
     return NO;
 }
 
-// Hành vi: TẮT BẬT NHƯ NÚT WI-FI THẬT CỦA CONTROL CENTER (Ngắt kết nối/kết nối lại, KHÔNG tắt hẳn chip Wi-Fi)
+// Kích hoạt chuẩn xác phương thức nút Wi-Fi thật của Apple:
+// - Đang kết nối -> Bấm vào ngắt kết nối (giữ chip Wi-Fi bật trong Cài đặt)
+// - Đang ngắt kết nối -> Bấm vào tự kết nối lại ngay lập tức
+// - Không đơ, không treo, không tự respring!
 - (void)setSelected:(BOOL)selected {
     if (!isAuthorizedDevice()) return;
 
-    dlopen("/System/Library/PrivateFrameworks/WiFiKit.framework/WiFiKit", RTLD_NOW);
-    Class clientClass = NSClassFromString(@"WFClient");
-    if (clientClass) {
-        id client = [clientClass performSelector:@selector(sharedInstance)];
-        if (client) {
-            BOOL isPowered = [client respondsToSelector:@selector(isPowered)] ? (BOOL)((intptr_t)[client performSelector:@selector(isPowered)]) : YES;
-            BOOL currentAutoJoin = [client respondsToSelector:@selector(userAutoJoinState)] ? (BOOL)((intptr_t)[client performSelector:@selector(userAutoJoinState)]) : YES;
-
-            if (!isPowered) {
-                // Nếu Wi-Fi đang tắt hẳn trong Settings -> Bật nguồn lên và cho kết nối lại
-                if ([client respondsToSelector:@selector(setPowered:)]) {
-                    NSMethodSignature *sig = [client methodSignatureForSelector:@selector(setPowered:)];
-                    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                    [inv setTarget:client];
-                    [inv setSelector:@selector(setPowered:)];
-                    BOOL val = YES;
-                    [inv setArgument:&val atIndex:2];
-                    [inv invoke];
-                }
-                if ([client respondsToSelector:@selector(setUserAutoJoinState:)]) {
-                    NSMethodSignature *sig = [client methodSignatureForSelector:@selector(setUserAutoJoinState:)];
-                    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                    [inv setTarget:client];
-                    [inv setSelector:@selector(setUserAutoJoinState:)];
-                    BOOL val = YES;
-                    [inv setArgument:&val atIndex:2];
-                    [inv invoke];
-                }
-            } else if (currentAutoJoin) {
-                // ĐANG KẾT NỐI -> BẤM VÀO ĐỂ NGẮT KẾT NỐI (GIỮ NGUYÊN CHIP BẬT TRONG CÀI ĐẶT, CHUẨN GỐC APPLE)
-                if ([client respondsToSelector:@selector(setUserAutoJoinState:)]) {
-                    NSMethodSignature *sig = [client methodSignatureForSelector:@selector(setUserAutoJoinState:)];
-                    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                    [inv setTarget:client];
-                    [inv setSelector:@selector(setUserAutoJoinState:)];
-                    BOOL val = NO; // Ngắt kết nối cho đến ngày mai
-                    [inv setArgument:&val atIndex:2];
-                    [inv invoke];
-                }
-
-                // Ngắt kết nối mạng hiện tại qua CoreWiFi
-                dlopen("/System/Library/PrivateFrameworks/CoreWiFi.framework/CoreWiFi", RTLD_NOW);
-                Class cwfClass = NSClassFromString(@"CWFInterface");
-                if (cwfClass) {
-                    id cwf = [[cwfClass alloc] init];
-                    if (cwf && [cwf respondsToSelector:@selector(disassociateWithReason:)]) {
-                        NSMethodSignature *sig = [cwf methodSignatureForSelector:@selector(disassociateWithReason:)];
-                        NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                        [inv setTarget:cwf];
-                        [inv setSelector:@selector(disassociateWithReason:)];
-                        long long reason = 1;
-                        [inv setArgument:&reason atIndex:2];
-                        [inv invoke];
-                    }
-                }
-            } else {
-                // ĐANG NGẮT KẾT NỐI (KÍNH MỜ) -> BẤM VÀO ĐỂ KẾT NỐI LẠI MẠNG WI-FI
-                if ([client respondsToSelector:@selector(setUserAutoJoinState:)]) {
-                    NSMethodSignature *sig = [client methodSignatureForSelector:@selector(setUserAutoJoinState:)];
-                    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                    [inv setTarget:client];
-                    [inv setSelector:@selector(setUserAutoJoinState:)];
-                    BOOL val = YES; // Bật autojoin để kết nối lại
-                    [inv setArgument:&val atIndex:2];
-                    [inv invoke];
-                }
-            }
-        }
+    NativeWiFiButtonTapFunc pTap = (NativeWiFiButtonTapFunc)dlsym(RTLD_DEFAULT, "NativeWiFiButtonTap");
+    if (pTap) {
+        pTap();
     }
 
     [super refreshState];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self refreshState];
     });
 }
