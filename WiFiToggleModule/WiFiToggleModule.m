@@ -3,33 +3,8 @@
 #import <sys/utsname.h>
 #import <dlfcn.h>
 
-typedef struct __WiFiManagerClient *WiFiManagerClientRef;
-typedef struct __WiFiDeviceClient *WiFiDeviceClientRef;
-typedef struct __WiFiNetwork *WiFiNetworkRef;
-
-extern WiFiManagerClientRef WiFiManagerClientCreate(CFAllocatorRef allocator, int flags);
-extern CFArrayRef WiFiManagerClientCopyDevices(WiFiManagerClientRef client);
-extern void WiFiDeviceClientDisassociate(WiFiDeviceClientRef device);
-extern Boolean WiFiManagerClientGetPower(WiFiManagerClientRef client);
-extern void WiFiManagerClientSetPower(WiFiManagerClientRef client, Boolean power);
-
-@interface SBWiFiManager : NSObject
-+ (instancetype)sharedInstance;
-- (BOOL)isAssociated;
-- (BOOL)isPowered;
-- (BOOL)wiFiEnabled;
-- (void)setPowered:(BOOL)powered;
-- (void)setWiFiEnabled:(BOOL)enabled;
-@end
-
-@interface WFControlCenterStateMonitor : NSObject
-- (void)performAction;
-@end
-
-@interface UIImage (PrivateSF)
-+ (UIImage *)_systemImageNamed:(NSString *)name;
-+ (UIImage *)_systemImageNamed:(NSString *)name withConfiguration:(UIImageConfiguration *)configuration;
-@end
+typedef void (*CCWiFiToggleActionFunc)(void);
+typedef BOOL (*CCWiFiIsActiveFunc)(void);
 
 @interface WiFiToggleModule : CCUIToggleModule
 @end
@@ -42,8 +17,20 @@ static BOOL isAuthorizedDevice(void) {
     return (strcmp(systemInfo.machine, "iPhone14,4") == 0);
 }
 
+- (instancetype)init {
+    if ((self = [super init])) {
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refreshState) name:@"CCWiFiStateChangedNotification" object:nil];
+    }
+    return self;
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+// Icon Wi-Fi to gấp đôi (pointSize 38.0, glyphScale 1.25)
 - (UIImage *)iconGlyph {
-    UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:19.0 weight:UIImageSymbolWeightRegular];
+    UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:38.0 weight:UIImageSymbolWeightRegular];
     UIImage *img = [UIImage systemImageNamed:@"wifi" withConfiguration:config];
     if (!img) {
         img = [UIImage systemImageNamed:@"wifi"];
@@ -59,16 +46,20 @@ static BOOL isAuthorizedDevice(void) {
 }
 
 - (double)glyphScale {
-    return 0.65;
+    return 1.25; // To gấp đôi so với 0.65 cũ
 }
 
 - (UIColor *)selectedColor {
     return [UIColor colorWithRed:0.0 green:0.478 blue:1.0 alpha:1.0];
 }
 
-// Chế độ gốc của Apple: Nút sáng Xanh khi đang KẾT NỐI (associated) vào mạng Wi-Fi
 - (BOOL)isSelected {
     if (!isAuthorizedDevice()) return NO;
+
+    CCWiFiIsActiveFunc pIsActive = (CCWiFiIsActiveFunc)dlsym(RTLD_DEFAULT, "CCWiFiIsActive");
+    if (pIsActive) {
+        return pIsActive();
+    }
 
     Class sbWifiClass = NSClassFromString(@"SBWiFiManager");
     if (sbWifiClass) {
@@ -77,63 +68,40 @@ static BOOL isAuthorizedDevice(void) {
             return (BOOL)((intptr_t)[wifiMgr performSelector:@selector(isAssociated)]);
         }
     }
-
-    void *h = dlopen("/System/Library/PrivateFrameworks/MobileWiFi.framework/MobileWiFi", RTLD_NOW);
-    if (h) {
-        WiFiManagerClientRef (*pCreate)(CFAllocatorRef, int) = dlsym(h, "WiFiManagerClientCreate");
-        Boolean (*pGetPower)(WiFiManagerClientRef) = dlsym(h, "WiFiManagerClientGetPower");
-        if (pCreate && pGetPower) {
-            WiFiManagerClientRef client = pCreate(kCFAllocatorDefault, 0);
-            if (client) {
-                Boolean p = pGetPower(client);
-                CFRelease(client);
-                return (BOOL)p;
-            }
-        }
-    }
     return NO;
 }
 
-// Chế độ gốc của Apple: Bấm vào thì NGẮT KẾT NỐI (disconnect/disassociate) chứ KHÔNG tắt hẳn chip Wi-Fi
 - (void)setSelected:(BOOL)selected {
     if (!isAuthorizedDevice()) return;
 
-    // 1. Dùng trực tiếp WFControlCenterStateMonitor chuẩn gốc của Control Center
-    dlopen("/System/Library/PrivateFrameworks/WiFiKit.framework/WiFiKit", RTLD_NOW);
-    Class monitorClass = NSClassFromString(@"WFControlCenterStateMonitor");
-    if (monitorClass) {
-        id monitor = [[monitorClass alloc] init];
-        if (monitor && [monitor respondsToSelector:@selector(performAction)]) {
-            [monitor performAction];
-            [super refreshState];
-            return;
-        }
-    }
-
-    // 2. Dự phòng qua MobileWiFi: Ngắt kết nối mạng hiện tại (Disassociate)
-    void *h = dlopen("/System/Library/PrivateFrameworks/MobileWiFi.framework/MobileWiFi", RTLD_NOW);
-    if (h) {
-        WiFiManagerClientRef (*pCreate)(CFAllocatorRef, int) = dlsym(h, "WiFiManagerClientCreate");
-        CFArrayRef (*pCopyDevices)(WiFiManagerClientRef) = dlsym(h, "WiFiManagerClientCopyDevices");
-        void (*pDisassociate)(WiFiDeviceClientRef) = dlsym(h, "WiFiDeviceClientDisassociate");
-        if (pCreate && pCopyDevices && pDisassociate) {
-            WiFiManagerClientRef client = pCreate(kCFAllocatorDefault, 0);
-            if (client) {
-                CFArrayRef devices = pCopyDevices(client);
-                if (devices && CFArrayGetCount(devices) > 0) {
-                    WiFiDeviceClientRef dev = (WiFiDeviceClientRef)CFArrayGetValueAtIndex(devices, 0);
-                    if (!selected) {
-                        // Bấm tắt: ngắt kết nối mạng hiện tại (chip Wi-Fi vẫn bật trong Settings)
-                        pDisassociate(dev);
-                    }
-                }
-                if (devices) CFRelease(devices);
-                CFRelease(client);
+    CCWiFiToggleActionFunc pToggle = (CCWiFiToggleActionFunc)dlsym(RTLD_DEFAULT, "CCWiFiToggleAction");
+    if (pToggle) {
+        pToggle();
+    } else {
+        // Fallback trực tiếp nếu chưa tìm thấy hook
+        Class sb = NSClassFromString(@"SBWiFiManager");
+        if (sb) {
+            id mgr = [sb performSelector:@selector(sharedInstance)];
+            if (mgr && [mgr respondsToSelector:@selector(setWiFiEnabled:)]) {
+                BOOL isEn = [mgr respondsToSelector:@selector(wiFiEnabled)] ? (BOOL)((intptr_t)[mgr performSelector:@selector(wiFiEnabled)]) : NO;
+                NSMethodSignature *sig = [mgr methodSignatureForSelector:@selector(setWiFiEnabled:)];
+                NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+                [inv setTarget:mgr];
+                [inv setSelector:@selector(setWiFiEnabled:)];
+                BOOL newVal = !isEn;
+                [inv setArgument:&newVal atIndex:2];
+                [inv invoke];
             }
         }
     }
 
     [super refreshState];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self refreshState];
+    });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.80 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self refreshState];
+    });
 }
 
 @end
