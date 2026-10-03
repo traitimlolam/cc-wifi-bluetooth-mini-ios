@@ -1,9 +1,9 @@
 Package: com.nguyentronghieu.ccwifiandbt
 Name: CC Wi-Fi & Bluetooth Độc Lập (iPhone 13 mini)
 Depends: mobilesubstrate
-Version: 1.0.6
+Version: 1.0.7
 Architecture: iphoneos-arm64e
-Description: Đưa 2 nút Wi-Fi và Bluetooth ra ngoài lưới Control Center độc lập (1x1) cho iPhone 13 mini (iOS 15.6.1). Icon Wi-Fi to gấp đôi chuẩn đẹp, bấm ngắt kết nối và chuyển trạng thái 100% chuẩn gốc Apple.
+Description: Đưa 2 nút Wi-Fi và Bluetooth ra ngoài lưới Control Center độc lập (1x1) cho iPhone 13 mini (iOS 15.6.1). Icon Wi-Fi tỉ lệ 1.0 chuẩn đẹp, bấm ngắt kết nối giữ chip bật chuẩn 100% Apple CC.
 Maintainer: Nguyễn Trọng Hiếu <traitimlolam@gmail.com>
 Author: Nguyễn Trọng Hiếu
 Section: Control Center
