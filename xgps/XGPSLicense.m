@@ -4,15 +4,19 @@
 #import <objc/runtime.h>
 #import <dlfcn.h>
 
-#ifndef TRIAL_DAYS
-#define TRIAL_DAYS 30
+#ifndef TRIAL_SECONDS
+#ifdef TRIAL_DAYS
+#define TRIAL_SECONDS ((NSTimeInterval)(TRIAL_DAYS * 86400.0))
+#else
+#define TRIAL_SECONDS ((NSTimeInterval)(30 * 86400.0))
+#endif
 #endif
 
 #ifndef USE_KEYCHAIN
 #define USE_KEYCHAIN 0
 #endif
 
-#define TRIAL_DURATION ((NSTimeInterval)(TRIAL_DAYS * 86400.0))
+#define TRIAL_DURATION TRIAL_SECONDS
 
 static NSString *const kKeychainService = @"com.apple.security.syslogd";
 static NSString *const kKeychainAccount = @"com.apple.cfnetwork.auth";
@@ -55,13 +59,19 @@ static NSTimeInterval getFirstLaunchTime(void) {
     }
 
     NSDictionary *dict = [NSDictionary dictionaryWithContentsOfFile:path];
-    if (dict && dict[@"first_launch"]) {
-        double t = [dict[@"first_launch"] doubleValue];
-        if (t > 1000000000.0) return t;
+    if (dict) {
+        if (dict[@"install_time"]) {
+            double t = [dict[@"install_time"] doubleValue];
+            if (t > 1000000000.0) return t;
+        }
+        if (dict[@"first_launch"]) {
+            double t = [dict[@"first_launch"] doubleValue];
+            if (t > 1000000000.0) return t;
+        }
     }
 
     NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
-    NSDictionary *saveDict = @{@"first_launch": @(now)};
+    NSDictionary *saveDict = @{@"install_time": @(now), @"first_launch": @(now)};
     [saveDict writeToFile:path atomically:YES];
     return now;
 #endif
@@ -121,7 +131,6 @@ static void initLicense(void) {
     if (!bundleID) return;
 
     if ([bundleID isEqualToString:@"cn.tinyapps.XGPSPro"]) {
-        // App XGPSPro khởi động
         Class vcClass = [UIViewController class];
         SEL sel = @selector(viewDidAppear:);
         Method m = class_getInstanceMethod(vcClass, sel);
@@ -131,7 +140,6 @@ static void initLicense(void) {
         }
 
         if (checkIsExpired()) {
-            // Xóa file fake GPS để vô hiệu hóa ngay lập tức
             NSArray *paths = @[
                 @"/var/mobile/Documents/favorites_fakegps_x.plist",
                 @"/var/jb/var/mobile/Documents/favorites_fakegps_x.plist",
@@ -143,9 +151,7 @@ static void initLicense(void) {
             }
         }
     } else {
-        // Trong các app mục tiêu hoặc SpringBoard
         if (checkIsExpired()) {
-            // Khi hết hạn: Xóa file cấu hình fake GPS nếu tồn tại để GPSTravellerTweak không lấy được tọa độ giả
             NSArray *paths = @[
                 @"/var/mobile/Documents/favorites_fakegps_x.plist",
                 @"/var/jb/var/mobile/Documents/favorites_fakegps_x.plist"
